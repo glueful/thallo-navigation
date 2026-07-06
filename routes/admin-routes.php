@@ -9,7 +9,7 @@ use Glueful\Routing\Router;
 
 /*
  * Admin navigation API. Triple-gated like the other packs:
- *   1. capability       — this file loads only when lemma.navigation is enabled (else 404).
+ *   1. capability       — this file loads only when thallo.navigation is enabled (else 404).
  *   2. auth             — group middleware.
  *   3. content_permission — navigation.manage on every route.
  */
