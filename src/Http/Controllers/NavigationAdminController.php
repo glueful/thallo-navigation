@@ -20,7 +20,7 @@ use function config;
 
 /**
  * Admin menu CRUD + the whole-tree replace. Route-gated (capability → auth →
- * lemma_permission:navigation.manage); the tree write is lock_version-guarded (409 stale).
+ * content_permission:navigation.manage); the tree write is lock_version-guarded (409 stale).
  * The tree read is LOCALE-AWARE: target_status/target_url are resolved for ?locale=, so
  * badges always reflect the locale the editor is looking at.
  */
