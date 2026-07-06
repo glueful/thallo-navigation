@@ -56,7 +56,7 @@ final class NavigationServiceProvider extends ServiceProvider
         $registry = app($context, CapabilityRegistry::class);
 
         $registry->register(new Capability(
-            'lemma.navigation',
+            'thallo.navigation',
             label: 'Navigation',
             description: 'Menu trees served headless and to themes.',
         ));
@@ -67,7 +67,7 @@ final class NavigationServiceProvider extends ServiceProvider
             'thallo-navigation',
         );
 
-        if ($registry->isEnabled('lemma.navigation')) {
+        if ($registry->isEnabled('thallo.navigation')) {
             $this->loadRoutesFrom(__DIR__ . '/../routes/admin-routes.php');
             $this->loadRoutesFrom(__DIR__ . '/../routes/public-routes.php');
         }

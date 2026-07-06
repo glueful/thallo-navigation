@@ -32,7 +32,7 @@ final class MenuResolver implements MenuReader
     {
         // Bindings are compile-time, so the disabled check lives here (the publish-gate
         // precedent): a disabled capability must look exactly like "pack absent".
-        if (!$this->capabilities->isEnabled('lemma.navigation')) {
+        if (!$this->capabilities->isEnabled('thallo.navigation')) {
             return null;
         }
         $menu = $this->menus->findMenu($slug);
