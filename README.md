@@ -1,9 +1,9 @@
-# glueful/lemma-navigation
+# glueful/thallo-navigation
 
-**Navigation menus as data** for [Lemma](https://getlemma.dev) — menu trees stored once,
+**Navigation menus as data** for [Thallo](https://thallo.dev) — menu trees stored once,
 served headless through a public API, and consumed by themes through the `MenuReader`
 contract — packaged as a **removable capability pack** (V2 rendered-delivery sub-project 1;
-see `docs/V2_DESIGN.md`). The future `lemma-render` pack consumes menus *optionally*:
+see `docs/V2_DESIGN.md`). The future `thallo-render` pack consumes menus *optionally*:
 `menu('main')` yields `[]` when this pack is absent or disabled.
 
 ## What it provides
@@ -21,7 +21,7 @@ see `docs/V2_DESIGN.md`). The future `lemma-render` pack consumes menus *optiona
   | Non-published targets | item **and its subtree** omitted (`unpublished`, `routeless`, `deleted`, `missing`) — no dead links can ever render |
   | Unknown menu / disabled capability | `null` — indistinguishable from "pack absent" |
 
-- **`EntryTargetResolver`** (contract added in `lemma-contracts`, implemented by core):
+- **`EntryTargetResolver`** (contract added in `thallo-contracts`, implemented by core):
   `resolve(entryUuid, locale)` → `{status: published|unpublished|deleted|missing|routeless,
   path}` — `published` means **addressable** (publication AND route); `routeless` is the
   actionable "assign a route" state; `path` is null for every non-published status.
@@ -30,7 +30,7 @@ see `docs/V2_DESIGN.md`). The future `lemma-render` pack consumes menus *optiona
 
 Public (rate-limited): `GET /v1/menus/{slug}?locale=en` — the resolved published-only tree.
 
-Admin (capability → `auth` → `lemma_permission:navigation.manage`), under
+Admin (capability → `auth` → `content_permission:navigation.manage`), under
 `/v1/admin/navigation`: menu CRUD (`GET|POST /menus`, `GET|PUT|DELETE /menus/{slug}`) and
 the **atomic whole-tree replace** `PUT /menus/{slug}/items` — the body carries the
 `lock_version` from the editor's GET; a stale version is a **409** (reload and retry).
@@ -50,10 +50,10 @@ up/down/indent/outdent reordering. Saving replaces the whole tree under `lock_ve
 
 ## Install / remove
 
-Bundled by default in the Lemma create-project template. Existing app:
-`composer require glueful/lemma-navigation`, `./lemma extensions:enable lemma-navigation`,
-`./lemma migrate:run`. Disable via the switchboard
-(`config/lemma.php: 'capabilities' => ['lemma.navigation' => false]`) or remove entirely —
+Bundled by default in the Thallo create-project template. Existing app:
+`composer require glueful/thallo-navigation`, `./thallo extensions:enable thallo-navigation`,
+`./thallo migrate:run`. Disable via the switchboard
+(`config/thallo.php: 'capabilities' => ['thallo.navigation' => false]`) or remove entirely —
 routes 404, `MenuReader` resolves null, core and every other pack boot unchanged.
 
 ## Out of scope (v1)
