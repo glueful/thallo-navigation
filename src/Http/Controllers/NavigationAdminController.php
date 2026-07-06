@@ -34,14 +34,14 @@ final class NavigationAdminController
     ) {
     }
 
-    #[ApiOperation(summary: 'List navigation menus', tags: ['Lemma Navigation'])]
+    #[ApiOperation(summary: 'List navigation menus', tags: ['Thallo Navigation'])]
     #[ApiResponse(200, description: 'Menu summaries (slug, name, item_count, lock_version).')]
     public function index(Request $request): Response
     {
         return Response::success(['menus' => $this->menus->listMenus()]);
     }
 
-    #[ApiOperation(summary: 'Create a navigation menu', tags: ['Lemma Navigation'])]
+    #[ApiOperation(summary: 'Create a navigation menu', tags: ['Thallo Navigation'])]
     #[ApiResponse(201, description: 'The created menu.')]
     #[ApiResponse(409, description: 'Slug already exists.')]
     #[ApiResponse(422, description: 'Invalid slug/name.')]
@@ -72,7 +72,7 @@ final class NavigationAdminController
         description: 'Per entry item: target_status (published|unpublished|deleted|missing|routeless), '
             . 'target_title (the localized page title an empty label inherits) '
             . 'and target_url resolved FOR ?locale= (status is locale-sensitive). Includes lock_version.',
-        tags: ['Lemma Navigation'],
+        tags: ['Thallo Navigation'],
     )]
     #[ApiResponse(200, description: 'Menu + tree + lock_version + echoed locale.')]
     #[ApiResponse(404, description: 'Unknown menu.')]
@@ -96,7 +96,7 @@ final class NavigationAdminController
         ]);
     }
 
-    #[ApiOperation(summary: 'Rename a navigation menu', tags: ['Lemma Navigation'])]
+    #[ApiOperation(summary: 'Rename a navigation menu', tags: ['Thallo Navigation'])]
     #[ApiResponse(200, description: 'Renamed.')]
     #[ApiResponse(404, description: 'Unknown menu.')]
     public function rename(Request $request, string $slug): Response
@@ -111,7 +111,7 @@ final class NavigationAdminController
         return Response::success(['slug' => $slug, 'name' => $dto->name]);
     }
 
-    #[ApiOperation(summary: 'Delete a navigation menu (and its items)', tags: ['Lemma Navigation'])]
+    #[ApiOperation(summary: 'Delete a navigation menu (and its items)', tags: ['Thallo Navigation'])]
     #[ApiResponse(200, description: 'Deleted.')]
     #[ApiResponse(404, description: 'Unknown menu.')]
     public function delete(Request $request, string $slug): Response
@@ -127,7 +127,7 @@ final class NavigationAdminController
         summary: 'Replace a menu tree atomically',
         description: 'Whole-tree PUT guarded by lock_version (the GET payload carries it); '
             . 'a stale version is a 409 — reload and retry.',
-        tags: ['Lemma Navigation'],
+        tags: ['Thallo Navigation'],
     )]
     #[ApiResponse(200, description: 'The updated editor payload.')]
     #[ApiResponse(404, description: 'Unknown menu.')]

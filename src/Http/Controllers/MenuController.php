@@ -30,7 +30,7 @@ final class MenuController
         description: 'Published-only tree: entry items resolve to live public paths; items whose '
             . 'target is not published are omitted with their subtree. Labels follow the locale '
             . 'fallback chain (requested → default → any).',
-        tags: ['Lemma Navigation'],
+        tags: ['Thallo Navigation'],
     )]
     #[ApiResponse(200, description: 'The resolved menu tree.')]
     #[ApiResponse(404, description: 'Unknown menu.')]
