@@ -175,6 +175,8 @@ final class NavigationAdminController
                 // Optional Lucide icon (nav-v2 spec §5).
                 'icon' => isset($row['icon']) && $row['icon'] !== '' ? (string) $row['icon'] : null,
                 'labels' => json_decode((string) $row['labels'], true) ?: [],
+                // Optional locale → description (nav-v2 megamenu); [] when absent.
+                'descriptions' => json_decode((string) ($row['descriptions'] ?? ''), true) ?: [],
                 'children' => $this->tree($byParent, (string) $row['uuid'], $locale),
             ];
             if ((string) $row['kind'] === 'entry') {

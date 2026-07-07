@@ -26,6 +26,10 @@ final class CreateNavigationItemsTable implements MigrationInterface
             $table->string('icon', 64)->nullable();
             // locale → label; resolution falls back requested → default locale → any.
             $table->json('labels');
+            // Optional locale → description (nav-v2 megamenu): a short supporting line
+            // rendered under the label in dropdown/megamenu panels. Same locale
+            // fallback as labels; null/absent = no description.
+            $table->json('descriptions')->nullable();
             $table->timestamp('created_at')->nullable();
             $table->timestamp('updated_at')->nullable();
             $table->index(['menu_uuid', 'parent_uuid', 'position'], 'idx_navigation_items_tree');

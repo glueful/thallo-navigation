@@ -89,6 +89,19 @@ final class MenuTreeDTO
                     break;
                 }
             }
+            // Optional per-item descriptions (nav-v2 megamenu): same locale → string
+            // shape as labels, longer cap (a supporting line, not a title). Empty
+            // strings are dropped so an untouched field never persists a blank map.
+            $descriptions = is_array($item['descriptions'] ?? null) ? $item['descriptions'] : [];
+            foreach ($descriptions as $loc => $text) {
+                if (!is_string($loc) || !is_string($text) || mb_strlen($text) > 500) {
+                    $errors["{$p}.descriptions"] =
+                        ['descriptions must map locale to string of at most 500 chars'];
+                    $descriptions = [];
+                    break;
+                }
+            }
+            $descriptions = array_filter($descriptions, static fn(string $t): bool => trim($t) !== '');
             // Optional Lucide icon (nav-v2 spec §5): lucide-only grammar — no
             // brand: namespace in navigation. Empty/null = no icon.
             $icon = $item['icon'] ?? null;
@@ -113,14 +126,14 @@ final class MenuTreeDTO
                 if (in_array($status, ['missing', 'deleted'], true)) {
                     $errors["{$p}.entry_uuid"] = ["entry target is {$status}"];
                 }
-                $rows[] = self::row($uuid, $parent, $i, 'entry', $entry, null, $labels, $icon);
+                $rows[] = self::row($uuid, $parent, $i, 'entry', $entry, null, $labels, $icon, $descriptions);
             } elseif ($kind === 'url') {
                 $url = is_string($item['url'] ?? null) ? trim($item['url']) : '';
                 $ok = preg_match('#^(https?://|/)#', $url) === 1 && mb_strlen($url) <= 1024;
                 if (!$ok) {
                     $errors["{$p}.url"] = ['url must be http(s):// or site-relative /… of at most 1024 chars'];
                 }
-                $rows[] = self::row($uuid, $parent, $i, 'url', null, $url, $labels, $icon);
+                $rows[] = self::row($uuid, $parent, $i, 'url', null, $url, $labels, $icon, $descriptions);
             } else {
                 $errors["{$p}.kind"] = ['kind must be entry or url'];
                 continue;
@@ -144,6 +157,7 @@ final class MenuTreeDTO
 
     /**
      * @param array<string,string> $labels
+     * @param array<string,string> $descriptions
      * @return array<string,mixed>
      */
     private static function row(
@@ -155,6 +169,7 @@ final class MenuTreeDTO
         ?string $url,
         array $labels,
         ?string $icon,
+        array $descriptions = [],
     ): array {
         $now = gmdate('Y-m-d H:i:s');
         return [
@@ -166,6 +181,10 @@ final class MenuTreeDTO
             'url' => $url,
             'icon' => $icon,
             'labels' => json_encode($labels, JSON_THROW_ON_ERROR),
+            // Null when empty so the nullable column stays NULL rather than "[]".
+            'descriptions' => $descriptions === []
+                ? null
+                : json_encode($descriptions, JSON_THROW_ON_ERROR),
             'created_at' => $now,
             'updated_at' => $now,
         ];

@@ -71,12 +71,15 @@ final class MenuResolver implements MenuReader
             if ($label === '' && is_string($inherited)) {
                 $label = $inherited; // empty label inherits the page title
             }
+            $description = $this->description($row, $locale);
             $out[] = [
                 'label' => $label,
                 'url' => $url,
                 'entry' => $entry,
                 // Optional Lucide icon (nav-v2 spec §5); templates render via icon().
                 'icon' => isset($row['icon']) && $row['icon'] !== '' ? (string) $row['icon'] : null,
+                // Optional supporting line for dropdown/megamenu panels; '' = none.
+                'description' => $description,
                 'children' => $this->children($byParent, (string) $row['uuid'], $locale),
             ];
         }
@@ -86,11 +89,24 @@ final class MenuResolver implements MenuReader
     /** @param array<string,mixed> $row */
     private function label(array $row, string $locale): string
     {
-        $labels = json_decode((string) $row['labels'], true);
-        if (!is_array($labels) || $labels === []) {
+        return $this->localized((string) $row['labels'], $locale);
+    }
+
+    /** @param array<string,mixed> $row */
+    private function description(array $row, string $locale): string
+    {
+        // Descriptions are optional (nullable column); absent → ''.
+        return $this->localized((string) ($row['descriptions'] ?? ''), $locale);
+    }
+
+    /** Resolve a locale → string JSON map with the requested → default → any fallback. */
+    private function localized(string $json, string $locale): string
+    {
+        $map = json_decode($json, true);
+        if (!is_array($map) || $map === []) {
             return '';
         }
         $default = (string) config($this->context, 'i18n.default_locale', 'en');
-        return (string) ($labels[$locale] ?? $labels[$default] ?? reset($labels));
+        return (string) ($map[$locale] ?? $map[$default] ?? reset($map));
     }
 }
