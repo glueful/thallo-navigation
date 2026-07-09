@@ -10,6 +10,7 @@ use Glueful\Http\Response;
 use Thallo\Contracts\Delivery\EntryTargetResolver;
 use Thallo\Contracts\Navigation\MenuUpdated;
 use Thallo\Navigation\Http\MenuCreateDTO;
+use Thallo\Navigation\Http\MenuReorderDTO;
 use Thallo\Navigation\Http\MenuTreeDTO;
 use Thallo\Navigation\MenuRepository;
 use Glueful\Routing\Attributes\ApiOperation;
@@ -65,6 +66,39 @@ final class NavigationAdminController
                 'lock_version' => (int) $menu['lock_version'],
             ],
         ], 201);
+    }
+
+    #[ApiOperation(summary: 'Reorder navigation menus (full ordered set)', tags: ['Thallo Navigation'])]
+    #[ApiResponse(200, description: 'The reordered menu summaries.')]
+    #[ApiResponse(422, description: 'Payload is not the exact set of existing menus (dupe/unknown/missing).')]
+    public function reorder(Request $request): Response
+    {
+        /** @var array<string,mixed> $body */
+        $body = (array) json_decode((string) $request->getContent(), true);
+        $dto = MenuReorderDTO::fromRequest($body); // 422 on malformed shape
+
+        // Uniform 422 (no write) for every business rejection — the client must send
+        // the COMPLETE order so the result is always dense 0..n-1.
+        if (count($dto->slugs) !== count(array_unique($dto->slugs))) {
+            return Response::error('Duplicate slugs are not allowed.', 422);
+        }
+        $existing = array_map(
+            static fn(array $m): string => (string) $m['slug'],
+            $this->menus->listMenus(),
+        );
+        $a = $dto->slugs;
+        $b = $existing;
+        sort($a);
+        sort($b);
+        if ($a !== $b) {
+            return Response::error('The slug list must be exactly the set of existing menus.', 422);
+        }
+
+        $this->menus->reorderMenus($dto->slugs);
+        foreach ($dto->slugs as $slug) {
+            $this->events->dispatch(new MenuUpdated($slug));
+        }
+        return Response::success(['menus' => $this->menus->listMenus()]);
     }
 
     #[ApiOperation(

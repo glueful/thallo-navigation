@@ -19,6 +19,10 @@ final class CreateNavigationMenusTable implements MigrationInterface
             $table->string('name', 120);
             // Optimistic concurrency for whole-tree PUTs (spec §5): stale version → 409.
             $table->integer('lock_version')->default(0);
+            // Admin-list order (navigation redesign §9): dense 0..n-1, rewritten by
+            // POST /menus/reorder. Independent named menus, so this affects only the
+            // admin list — no delivery/render impact.
+            $table->integer('position')->default(0);
             $table->timestamp('created_at')->nullable();
             $table->timestamp('updated_at')->nullable();
             $table->unique('slug', 'uniq_navigation_menu_slug');

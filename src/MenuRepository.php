@@ -22,11 +22,15 @@ final class MenuRepository
     public function createMenu(string $slug, string $name): array
     {
         $now = gmdate('Y-m-d H:i:s');
+        $max = $this->db->getPDO()
+            ->query('SELECT COALESCE(MAX(position), -1) AS m FROM navigation_menus')
+            ->fetch(\PDO::FETCH_ASSOC);
         $row = [
             'uuid' => Utils::generateNanoID(),
             'slug' => $slug,
             'name' => $name,
             'lock_version' => 0,
+            'position' => ((int) ($max['m'] ?? -1)) + 1,
             'created_at' => $now,
             'updated_at' => $now,
         ];
@@ -47,7 +51,8 @@ final class MenuRepository
         $stmt = $this->db->getPDO()->query(
             'SELECT m.slug, m.name, m.lock_version, COUNT(i.id) AS item_count'
             . ' FROM navigation_menus m LEFT JOIN navigation_items i ON i.menu_uuid = m.uuid'
-            . ' GROUP BY m.id, m.slug, m.name, m.lock_version ORDER BY m.slug ASC'
+            . ' GROUP BY m.id, m.slug, m.name, m.lock_version, m.position'
+            . ' ORDER BY m.position ASC, m.slug ASC'
         );
         $out = [];
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
@@ -84,6 +89,31 @@ final class MenuRepository
                 ->execute([(string) $menu['uuid']]);
             $pdo->commit();
             return true;
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Rewrite the admin-list order. The caller passes the FULL ordered slug set
+     * (validated in the controller); this writes dense 0..n-1 in one transaction.
+     *
+     * @param list<string> $slugs
+     */
+    public function reorderMenus(array $slugs): void
+    {
+        $pdo = $this->db->getPDO();
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare(
+                'UPDATE navigation_menus SET position = ?, updated_at = ? WHERE slug = ?'
+            );
+            $now = gmdate('Y-m-d H:i:s');
+            foreach (array_values($slugs) as $i => $slug) {
+                $stmt->execute([$i, $now, $slug]);
+            }
+            $pdo->commit();
         } catch (\Throwable $e) {
             $pdo->rollBack();
             throw $e;

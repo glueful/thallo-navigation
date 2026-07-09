@@ -20,6 +20,8 @@ $router->group(
             ->middleware('content_permission:navigation.manage');
         $router->post('/menus', [NavigationAdminController::class, 'create'])
             ->middleware('content_permission:navigation.manage');
+        $router->post('/menus/reorder', [NavigationAdminController::class, 'reorder'])
+            ->middleware('content_permission:navigation.manage');
         $router->get('/menus/{slug}', [NavigationAdminController::class, 'show'])
             ->middleware('content_permission:navigation.manage');
         $router->put('/menus/{slug}', [NavigationAdminController::class, 'rename'])
