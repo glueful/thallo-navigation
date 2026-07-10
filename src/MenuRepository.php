@@ -104,23 +104,26 @@ final class MenuRepository
         if ($menu === null) {
             return false;
         }
-        $this->barrier?->assertWritable();
-        $pdo = $this->db->getPDO();
-        $tenant = TenantScope::current($this->tenants, $this->context);
-        $extra = $tenant === null ? '' : ' AND tenant_uuid = ?';
-        $uuid = (string) $menu['uuid'];
-        $pdo->beginTransaction();
-        try {
-            $pdo->prepare('DELETE FROM navigation_items WHERE menu_uuid = ?' . $extra)
-                ->execute($tenant === null ? [$uuid] : [$uuid, $tenant]);
-            $pdo->prepare('DELETE FROM navigation_menus WHERE uuid = ?' . $extra)
-                ->execute($tenant === null ? [$uuid] : [$uuid, $tenant]);
-            $pdo->commit();
-            return true;
-        } catch (\Throwable $e) {
-            $pdo->rollBack();
-            throw $e;
-        }
+        $write = function () use ($menu): bool {
+            $pdo = $this->db->getPDO();
+            $tenant = TenantScope::current($this->tenants, $this->context);
+            $extra = $tenant === null ? '' : ' AND tenant_uuid = ?';
+            $uuid = (string) $menu['uuid'];
+            $pdo->beginTransaction();
+            try {
+                $pdo->prepare('DELETE FROM navigation_items WHERE menu_uuid = ?' . $extra)
+                    ->execute($tenant === null ? [$uuid] : [$uuid, $tenant]);
+                $pdo->prepare('DELETE FROM navigation_menus WHERE uuid = ?' . $extra)
+                    ->execute($tenant === null ? [$uuid] : [$uuid, $tenant]);
+                $pdo->commit();
+                return true;
+            } catch (\Throwable $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
+        };
+
+        return $this->barrier !== null ? $this->barrier->runWritable($write) : $write();
     }
 
     /**
@@ -131,24 +134,27 @@ final class MenuRepository
      */
     public function reorderMenus(array $slugs): void
     {
-        $this->barrier?->assertWritable();
-        $pdo = $this->db->getPDO();
-        // CRITICAL: slug is only unique per-tenant once widened, so an unscoped UPDATE could clobber
-        // another tenant's same-slug menu.
-        $tenant = TenantScope::current($this->tenants, $this->context);
-        $where = $tenant === null ? 'WHERE slug = ?' : 'WHERE slug = ? AND tenant_uuid = ?';
-        $pdo->beginTransaction();
-        try {
-            $stmt = $pdo->prepare("UPDATE navigation_menus SET position = ?, updated_at = ? {$where}");
-            $now = gmdate('Y-m-d H:i:s');
-            foreach (array_values($slugs) as $i => $slug) {
-                $stmt->execute($tenant === null ? [$i, $now, $slug] : [$i, $now, $slug, $tenant]);
+        $write = function () use ($slugs): void {
+            $pdo = $this->db->getPDO();
+            $tenant = TenantScope::current($this->tenants, $this->context);
+            $where = $tenant === null ? 'WHERE slug = ?' : 'WHERE slug = ? AND tenant_uuid = ?';
+            $pdo->beginTransaction();
+            try {
+                $stmt = $pdo->prepare("UPDATE navigation_menus SET position = ?, updated_at = ? {$where}");
+                $now = gmdate('Y-m-d H:i:s');
+                foreach (array_values($slugs) as $i => $slug) {
+                    $params = $tenant === null
+                        ? [$i, $now, $slug]
+                        : [$i, $now, $slug, $tenant];
+                    $stmt->execute($params);
+                }
+                $pdo->commit();
+            } catch (\Throwable $e) {
+                $pdo->rollBack();
+                throw $e;
             }
-            $pdo->commit();
-        } catch (\Throwable $e) {
-            $pdo->rollBack();
-            throw $e;
-        }
+        };
+        $this->barrier !== null ? $this->barrier->runWritable($write) : $write();
     }
 
     /** @return list<array<string,mixed>> flat rows in (position, id) order */
@@ -170,35 +176,38 @@ final class MenuRepository
      */
     public function replaceTree(string $menuUuid, int $lockVersion, array $flatItems): bool
     {
-        $this->barrier?->assertWritable();
-        $pdo = $this->db->getPDO();
-        $tenant = TenantScope::current($this->tenants, $this->context);
-        $extra = $tenant === null ? '' : ' AND tenant_uuid = ?';
-        $pdo->beginTransaction();
-        try {
-            $guard = $pdo->prepare(
-                'UPDATE navigation_menus SET lock_version = lock_version + 1, updated_at = ?'
-                . ' WHERE uuid = ? AND lock_version = ?' . $extra
-            );
-            $guardParams = [gmdate('Y-m-d H:i:s'), $menuUuid, $lockVersion];
-            if ($tenant !== null) {
-                $guardParams[] = $tenant;
-            }
-            $guard->execute($guardParams);
-            if ($guard->rowCount() === 0) {
-                $pdo->rollBack();
-                return false; // stale lock_version (or vanished menu)
-            }
-            $pdo->prepare('DELETE FROM navigation_items WHERE menu_uuid = ?' . $extra)
+        $write = function () use ($menuUuid, $lockVersion, $flatItems): bool {
+            $pdo = $this->db->getPDO();
+            $tenant = TenantScope::current($this->tenants, $this->context);
+            $extra = $tenant === null ? '' : ' AND tenant_uuid = ?';
+            $pdo->beginTransaction();
+            try {
+                $guard = $pdo->prepare(
+                    'UPDATE navigation_menus SET lock_version = lock_version + 1, updated_at = ?'
+                    . ' WHERE uuid = ? AND lock_version = ?' . $extra
+                );
+                $guardParams = [gmdate('Y-m-d H:i:s'), $menuUuid, $lockVersion];
+                if ($tenant !== null) {
+                    $guardParams[] = $tenant;
+                }
+                $guard->execute($guardParams);
+                if ($guard->rowCount() === 0) {
+                    $pdo->rollBack();
+                    return false; // stale lock_version (or vanished menu)
+                }
+                $pdo->prepare('DELETE FROM navigation_items WHERE menu_uuid = ?' . $extra)
                 ->execute($tenant === null ? [$menuUuid] : [$menuUuid, $tenant]);
-            foreach ($flatItems as $row) {
-                $this->db->table('navigation_items')->insert($row + ['menu_uuid' => $menuUuid]);
+                foreach ($flatItems as $row) {
+                    $this->db->table('navigation_items')->insert($row + ['menu_uuid' => $menuUuid]);
+                }
+                $pdo->commit();
+                return true;
+            } catch (\Throwable $e) {
+                $pdo->rollBack();
+                throw $e;
             }
-            $pdo->commit();
-            return true;
-        } catch (\Throwable $e) {
-            $pdo->rollBack();
-            throw $e;
-        }
+        };
+
+        return $this->barrier !== null ? $this->barrier->runWritable($write) : $write();
     }
 }
