@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Thallo\Navigation;
 
+use Glueful\Bootstrap\ApplicationContext;
 use Glueful\Database\Connection;
+use Glueful\Extensions\Contracts\Tenancy\CurrentTenantResolver;
+use Glueful\Extensions\Contracts\Tenancy\TenantScope;
 use Glueful\Helpers\Utils;
+use Thallo\Contracts\Tenancy\WriteBarrier;
 
 /**
  * Reads/writes navigation_menus + navigation_items. replaceTree() is the ONLY tree write:
@@ -14,17 +18,30 @@ use Glueful\Helpers\Utils;
  */
 final class MenuRepository
 {
-    public function __construct(private readonly Connection $db)
-    {
+    public function __construct(
+        private readonly Connection $db,
+        private readonly ?ApplicationContext $context = null,
+        private readonly ?CurrentTenantResolver $tenants = null,
+        private readonly ?WriteBarrier $barrier = null,
+    ) {
     }
 
     /** @return array<string,mixed> the created menu row */
     public function createMenu(string $slug, string $name): array
     {
         $now = gmdate('Y-m-d H:i:s');
-        $max = $this->db->getPDO()
-            ->query('SELECT COALESCE(MAX(position), -1) AS m FROM navigation_menus')
-            ->fetch(\PDO::FETCH_ASSOC);
+        // Raw SQL bypasses the tenancy hook — scope the position scan so positions stay dense
+        // per tenant (the following insert is a builder call and IS stamped).
+        $tenant = TenantScope::current($this->tenants, $this->context);
+        $sql = 'SELECT COALESCE(MAX(position), -1) AS m FROM navigation_menus';
+        $params = [];
+        if ($tenant !== null) {
+            $sql .= ' WHERE tenant_uuid = ?';
+            $params[] = $tenant;
+        }
+        $maxStmt = $this->db->getPDO()->prepare($sql);
+        $maxStmt->execute($params);
+        $max = $maxStmt->fetch(\PDO::FETCH_ASSOC);
         $row = [
             'uuid' => Utils::generateNanoID(),
             'slug' => $slug,
@@ -48,12 +65,19 @@ final class MenuRepository
     /** @return list<array{slug:string,name:string,item_count:int,lock_version:int}> */
     public function listMenus(): array
     {
-        $stmt = $this->db->getPDO()->query(
+        // Raw SQL — scope the menu filter AND the joined items (prevents cross-tenant item-count drift).
+        $tenant = TenantScope::current($this->tenants, $this->context);
+        $join = $tenant === null
+            ? ' LEFT JOIN navigation_items i ON i.menu_uuid = m.uuid'
+            : ' LEFT JOIN navigation_items i ON i.menu_uuid = m.uuid AND i.tenant_uuid = m.tenant_uuid';
+        $where = $tenant === null ? '' : ' WHERE m.tenant_uuid = ?';
+        $stmt = $this->db->getPDO()->prepare(
             'SELECT m.slug, m.name, m.lock_version, COUNT(i.id) AS item_count'
-            . ' FROM navigation_menus m LEFT JOIN navigation_items i ON i.menu_uuid = m.uuid'
+            . ' FROM navigation_menus m' . $join . $where
             . ' GROUP BY m.id, m.slug, m.name, m.lock_version, m.position'
             . ' ORDER BY m.position ASC, m.slug ASC'
         );
+        $stmt->execute($tenant === null ? [] : [$tenant]);
         $out = [];
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
             $out[] = [
@@ -80,13 +104,17 @@ final class MenuRepository
         if ($menu === null) {
             return false;
         }
+        $this->barrier?->assertWritable();
         $pdo = $this->db->getPDO();
+        $tenant = TenantScope::current($this->tenants, $this->context);
+        $extra = $tenant === null ? '' : ' AND tenant_uuid = ?';
+        $uuid = (string) $menu['uuid'];
         $pdo->beginTransaction();
         try {
-            $pdo->prepare('DELETE FROM navigation_items WHERE menu_uuid = ?')
-                ->execute([(string) $menu['uuid']]);
-            $pdo->prepare('DELETE FROM navigation_menus WHERE uuid = ?')
-                ->execute([(string) $menu['uuid']]);
+            $pdo->prepare('DELETE FROM navigation_items WHERE menu_uuid = ?' . $extra)
+                ->execute($tenant === null ? [$uuid] : [$uuid, $tenant]);
+            $pdo->prepare('DELETE FROM navigation_menus WHERE uuid = ?' . $extra)
+                ->execute($tenant === null ? [$uuid] : [$uuid, $tenant]);
             $pdo->commit();
             return true;
         } catch (\Throwable $e) {
@@ -103,15 +131,18 @@ final class MenuRepository
      */
     public function reorderMenus(array $slugs): void
     {
+        $this->barrier?->assertWritable();
         $pdo = $this->db->getPDO();
+        // CRITICAL: slug is only unique per-tenant once widened, so an unscoped UPDATE could clobber
+        // another tenant's same-slug menu.
+        $tenant = TenantScope::current($this->tenants, $this->context);
+        $where = $tenant === null ? 'WHERE slug = ?' : 'WHERE slug = ? AND tenant_uuid = ?';
         $pdo->beginTransaction();
         try {
-            $stmt = $pdo->prepare(
-                'UPDATE navigation_menus SET position = ?, updated_at = ? WHERE slug = ?'
-            );
+            $stmt = $pdo->prepare("UPDATE navigation_menus SET position = ?, updated_at = ? {$where}");
             $now = gmdate('Y-m-d H:i:s');
             foreach (array_values($slugs) as $i => $slug) {
-                $stmt->execute([$i, $now, $slug]);
+                $stmt->execute($tenant === null ? [$i, $now, $slug] : [$i, $now, $slug, $tenant]);
             }
             $pdo->commit();
         } catch (\Throwable $e) {
@@ -123,11 +154,13 @@ final class MenuRepository
     /** @return list<array<string,mixed>> flat rows in (position, id) order */
     public function itemsOf(string $menuUuid): array
     {
+        $tenant = TenantScope::current($this->tenants, $this->context);
+        $extra = $tenant === null ? '' : ' AND tenant_uuid = ?';
         $stmt = $this->db->getPDO()->prepare(
             'SELECT uuid, parent_uuid, position, kind, entry_uuid, url, icon, labels, descriptions'
-            . ' FROM navigation_items WHERE menu_uuid = ? ORDER BY position ASC, id ASC'
+            . ' FROM navigation_items WHERE menu_uuid = ?' . $extra . ' ORDER BY position ASC, id ASC'
         );
-        $stmt->execute([$menuUuid]);
+        $stmt->execute($tenant === null ? [$menuUuid] : [$menuUuid, $tenant]);
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
@@ -137,19 +170,27 @@ final class MenuRepository
      */
     public function replaceTree(string $menuUuid, int $lockVersion, array $flatItems): bool
     {
+        $this->barrier?->assertWritable();
         $pdo = $this->db->getPDO();
+        $tenant = TenantScope::current($this->tenants, $this->context);
+        $extra = $tenant === null ? '' : ' AND tenant_uuid = ?';
         $pdo->beginTransaction();
         try {
             $guard = $pdo->prepare(
                 'UPDATE navigation_menus SET lock_version = lock_version + 1, updated_at = ?'
-                . ' WHERE uuid = ? AND lock_version = ?'
+                . ' WHERE uuid = ? AND lock_version = ?' . $extra
             );
-            $guard->execute([gmdate('Y-m-d H:i:s'), $menuUuid, $lockVersion]);
+            $guardParams = [gmdate('Y-m-d H:i:s'), $menuUuid, $lockVersion];
+            if ($tenant !== null) {
+                $guardParams[] = $tenant;
+            }
+            $guard->execute($guardParams);
             if ($guard->rowCount() === 0) {
                 $pdo->rollBack();
                 return false; // stale lock_version (or vanished menu)
             }
-            $pdo->prepare('DELETE FROM navigation_items WHERE menu_uuid = ?')->execute([$menuUuid]);
+            $pdo->prepare('DELETE FROM navigation_items WHERE menu_uuid = ?' . $extra)
+                ->execute($tenant === null ? [$menuUuid] : [$menuUuid, $tenant]);
             foreach ($flatItems as $row) {
                 $this->db->table('navigation_items')->insert($row + ['menu_uuid' => $menuUuid]);
             }
