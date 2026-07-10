@@ -14,7 +14,7 @@ use Glueful\Routing\Router;
  *   3. content_permission — navigation.manage on every route.
  */
 $router->group(
-    ['prefix' => '/v1/admin/navigation', 'middleware' => ['tenant_bootstrap', 'auth']],
+    ['prefix' => '/v1/admin/navigation', 'middleware' => ['auth', 'tenant_profile:admin', 'tenant_bootstrap']],
     function (Router $router): void {
         $router->get('/menus', [NavigationAdminController::class, 'index'])
             ->middleware('content_permission:navigation.manage');

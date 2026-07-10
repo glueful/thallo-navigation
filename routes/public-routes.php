@@ -9,5 +9,5 @@ use Glueful\Routing\Router;
 
 // Public resolved menus (published-only). Rate-limited like every anonymous Thallo surface.
 $router->get('/v1/menus/{slug}', [MenuController::class, 'show'])
-    ->middleware('tenant_bootstrap')
+    ->middleware(['tenant_profile:public', 'tenant_bootstrap'])
     ->middleware('rate_limit');
