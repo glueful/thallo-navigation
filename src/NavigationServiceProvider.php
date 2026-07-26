@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Thallo\Navigation;
 
+use Glueful\Extensions\DeclaresLoadOrder;
 use Glueful\Bootstrap\ApplicationContext;
 use Glueful\Database\Migrations\MigrationPriority;
 use Glueful\Extensions\ServiceProvider;
@@ -15,8 +16,24 @@ use Thallo\Navigation\Http\Controllers\MenuController;
 use Thallo\Navigation\Http\Controllers\NavigationAdminController;
 use Psr\Container\ContainerInterface;
 
-final class NavigationServiceProvider extends ServiceProvider
+final class NavigationServiceProvider extends ServiceProvider implements DeclaresLoadOrder
 {
+    public static function loadAfter(): array
+    {
+        return [];
+    }
+
+    /**
+     * Post-extension tier (modules-not-extensions spec §5.2): app-integrated modules load
+     * AFTER the extension universe, reproducing the pre-conversion order in which they lived
+     * at the tail of config/extensions.php. Inter-module order comes from the
+     * serviceproviders.php list (the orderer's stable tie-break).
+     */
+    public static function loadPriority(): int
+    {
+        return 100;
+    }
+
     /** @return array<string, array<string, mixed>> */
     public static function services(): array
     {

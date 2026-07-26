@@ -1,7 +1,7 @@
 {
   "name": "glueful/thallo-navigation",
   "description": "Navigation menus for Thallo: menu trees as data with published-only resolution, as a removable capability pack.",
-  "type": "glueful-extension",
+  "type": "library",
   "license": "MIT",
   "authors": [
     { "name": "Michael Tawiah Sowah", "email": "michael@glueful.dev" }
