@@ -3,7 +3,7 @@
 **Navigation menus as data** for [Thallo](https://thallo.dev) — menu trees stored once,
 served headless through a public API, and consumed by themes through the `MenuReader`
 contract — packaged as a **removable capability pack** (V2 rendered-delivery sub-project 1;
-see `docs/V2_DESIGN.md`). The future `thallo-render` pack consumes menus *optionally*:
+see `docs/internal/V2_DESIGN.md`). The future `thallo-render` pack consumes menus *optionally*:
 `menu('main')` yields `[]` when this pack is absent or disabled.
 
 ## What it provides
