@@ -1,25 +1,46 @@
 {
-  "name": "glueful/thallo-navigation",
-  "description": "Navigation menus for Thallo: menu trees as data with published-only resolution, as a removable capability pack.",
-  "type": "library",
-  "license": "MIT",
-  "authors": [
-    { "name": "Michael Tawiah Sowah", "email": "michael@glueful.dev" }
-  ],
-  "version": "0.1.0",
-  "require": {
-    "php": "^8.3",
-    "glueful/thallo-contracts": "*",
-    "glueful/extension-contracts": "*",
-    "glueful/framework": "^1.65.2"
-  },
-  "autoload": {
-    "psr-4": { "Thallo\\Navigation\\": "src/" }
-  },
-  "extra": {
-    "glueful": {
-      "provider": "Thallo\\Navigation\\NavigationServiceProvider"
-    }
-  },
-  "minimum-stability": "stable"
+    "name": "glueful/thallo-navigation",
+    "description": "Navigation menus for Thallo: menu trees as data with published-only resolution, as a removable capability pack.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Michael Tawiah Sowah",
+            "email": "michael@glueful.dev"
+        }
+    ],
+    "version": "0.1.0",
+    "require": {
+        "php": "^8.3",
+        "glueful/thallo-contracts": "*",
+        "glueful/extension-contracts": "*",
+        "glueful/framework": "^1.65.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Thallo\\Navigation\\": "src/"
+        }
+    },
+    "extra": {
+        "glueful": {
+            "provider": "Thallo\\Navigation\\NavigationServiceProvider",
+            "requires": {
+                "glueful": ">=1.79.0",
+                "extensions": []
+            },
+            "migrations": [
+                {
+                    "id": "default",
+                    "path": "migrations",
+                    "priority": "dependent",
+                    "mode": "core",
+                    "legacyAliases": [
+                        "thallo-navigation"
+                    ],
+                    "verifier": "Thallo\\Navigation\\Schema\\NavigationSchemaVerifier"
+                }
+            ]
+        }
+    },
+    "minimum-stability": "stable"
 }

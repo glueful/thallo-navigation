@@ -6,7 +6,6 @@ namespace Thallo\Navigation;
 
 use Glueful\Extensions\DeclaresLoadOrder;
 use Glueful\Bootstrap\ApplicationContext;
-use Glueful\Database\Migrations\MigrationPriority;
 use Glueful\Extensions\ServiceProvider;
 use Thallo\Contracts\Capability\Capability;
 use Thallo\Contracts\Capability\CapabilityRegistry;
@@ -78,11 +77,7 @@ final class NavigationServiceProvider extends ServiceProvider implements Declare
             description: 'Menu trees served headless and to themes.',
         ));
 
-        $this->loadMigrationsFrom(
-            __DIR__ . '/../migrations',
-            MigrationPriority::DEPENDENT,
-            'thallo-navigation',
-        );
+        // Migrations are declared by the composer manifest (extra.glueful.migrations).
 
         if ($registry->isEnabled('thallo.navigation')) {
             $this->loadRoutesFrom(__DIR__ . '/../routes/admin-routes.php');
