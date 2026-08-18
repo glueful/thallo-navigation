@@ -34,9 +34,6 @@
                     "path": "migrations",
                     "priority": "dependent",
                     "mode": "core",
-                    "legacyAliases": [
-                        "thallo-navigation"
-                    ],
                     "verifier": "Thallo\\Navigation\\Schema\\NavigationSchemaVerifier"
                 }
             ]
