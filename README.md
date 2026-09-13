@@ -61,3 +61,10 @@ routes 404, `MenuReader` resolves null, core and every other pack boot unchanged
 Menu-item visibility rules (auth-based), mega-menu metadata (icons, badges), theme
 menu-region mapping beyond slugs, drag-drop editing polish, and per-item target/rel
 attributes — all can layer onto the json columns without schema breaks.
+
+## Contributing
+
+This repository is a read-only mirror, published from
+[glueful/thallo](https://github.com/glueful/thallo) on every release; its `main` is overwritten
+by the next split, so nothing can land here. Issues and pull requests belong in glueful/thallo,
+where this code lives at `packages/thallo-navigation/`.
