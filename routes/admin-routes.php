@@ -31,6 +31,8 @@ $router->group(
             ->middleware('content_permission:navigation.manage');
         $router->put('/menus/{slug}', [NavigationAdminController::class, 'rename'])
             ->middleware('content_permission:navigation.manage');
+        $router->get('/menus/{slug}/usage', [NavigationAdminController::class, 'usage'])
+            ->middleware('content_permission:navigation.manage');
         $router->delete('/menus/{slug}', [NavigationAdminController::class, 'delete'])
             ->middleware('content_permission:navigation.manage');
         $router->put('/menus/{slug}/items', [NavigationAdminController::class, 'replaceItems'])

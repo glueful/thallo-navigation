@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Thallo\Navigation\Http\Controllers;
 
+use Thallo\Contracts\Navigation\MenuUsageReader;
+use Thallo\Contracts\Navigation\MenuUse;
 use Glueful\Bootstrap\ApplicationContext;
 use Glueful\Events\EventService;
 use Glueful\Http\Response;
@@ -32,6 +34,8 @@ final class NavigationAdminController
         private readonly MenuRepository $menus,
         private readonly EntryTargetResolver $targets,
         private readonly EventService $events,
+        /** Soft-bound: without it the delete warning has nothing to list. */
+        private readonly ?MenuUsageReader $usage = null,
     ) {
     }
 
@@ -143,6 +147,29 @@ final class NavigationAdminController
         }
         $this->events->dispatch(new MenuUpdated($slug));
         return Response::success(['slug' => $slug, 'name' => $dto->name]);
+    }
+
+    #[ApiOperation(
+        summary: 'Where a menu is shown',
+        description: 'The regions and entries whose Navigation blocks show the menu, for the delete '
+            . 'warning. A theme template that names the menu is not listed.',
+        tags: ['Thallo Navigation'],
+    )]
+    #[ApiResponse(200, description: 'The places, regions first: kind, id, label, content_type.')]
+    #[ApiResponse(404, description: 'Unknown menu.')]
+    public function usage(string $slug): Response
+    {
+        if ($this->menus->findMenu($slug) === null) {
+            return Response::error('Unknown menu.', 404);
+        }
+        $uses = array_map(static fn(MenuUse $use): array => [
+            'kind' => $use->kind,
+            'id' => $use->id,
+            'label' => $use->label,
+            'content_type' => $use->contentType,
+        ], $this->usage?->usage($slug) ?? []);
+
+        return Response::success(['usage' => $uses]);
     }
 
     #[ApiOperation(summary: 'Delete a navigation menu (and its items)', tags: ['Thallo Navigation'])]
