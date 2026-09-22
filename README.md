@@ -2,15 +2,16 @@
 
 **Navigation menus as data** for [Thallo](https://thallo.dev) — menu trees stored once,
 served headless through a public API, and consumed by themes through the `MenuReader`
-contract — packaged as a **removable capability pack** (V2 rendered-delivery sub-project 1;
-see `docs/internal/V2_DESIGN.md`). The future `thallo-render` pack consumes menus *optionally*:
-`menu('main')` yields `[]` when this pack is absent or disabled.
+contract — packaged as a **capability pack** (V2 rendered-delivery sub-project 1;
+see `docs/internal/V2_DESIGN.md`). The `thallo-render` pack consumes menus *optionally*:
+`menu('main')` yields `[]` when this pack is disabled.
 
 ## What it provides
 
 - **Two tables:** `navigation_menus` (identity + `lock_version` for optimistic tree
   writes) and `navigation_items` (tree nodes: `entry` items as soft references — no
-  cross-package FKs — or raw `url` items, with **per-locale label maps**).
+  cross-package FKs — or raw `url` items, with **per-locale label and description maps** and an
+  optional Lucide `icon`). An `entry` item with an empty label inherits the page title.
 - **Resolution semantics** (`MenuReader::menu(slug, locale)`):
 
   | Rule | Behavior |
@@ -19,7 +20,7 @@ see `docs/internal/V2_DESIGN.md`). The future `thallo-render` pack consumes menu
   | `url` items | served verbatim |
   | `entry` items | resolved to the live public path at read time via `EntryTargetResolver` — slug changes propagate automatically |
   | Non-published targets | item **and its subtree** omitted (`unpublished`, `routeless`, `deleted`, `missing`) — no dead links can ever render |
-  | Unknown menu / disabled capability | `null` — indistinguishable from "pack absent" |
+  | Unknown menu / disabled capability | `null` |
 
 - **`EntryTargetResolver`** (contract added in `thallo-contracts`, implemented by core):
   `resolve(entryUuid, locale)` → `{status: published|unpublished|deleted|missing|routeless,
@@ -37,30 +38,31 @@ the **atomic whole-tree replace** `PUT /menus/{slug}/items` — the body carries
 The admin tree read is **locale-aware** (`?locale=`): `target_status`/`target_url` are
 resolved for that locale, so editor badges always match the locale on screen. Tree
 payloads are validated recursively: kinds, `http(s)://` or site-relative URLs, labels
-≤ 200 chars, depth ≤ 6, ≤ 500 items; `missing`/`deleted` targets are 422s while
+≤ 200 chars, descriptions ≤ 500 chars, icons as Lucide names, depth ≤ 6, ≤ 500 items; `missing`/`deleted` targets are 422s while
 `unpublished`/`routeless` are allowed (editors build menus while content is in draft).
 `MenuUpdated` is dispatched on every mutation — the render-cache purge seam.
 
 ## Admin SPA
 
-Settings-level **Navigation** page (capability-gated): menu list plus a tree editor —
-per-locale labels via a locale switcher (which also drives the target badges), entry
-picker with `unpublished`/`routeless`/`deleted`/`missing` badges, URL items, and
-up/down/indent/outdent reordering. Saving replaces the whole tree under `lock_version`.
+**Navigation** page under the sidebar's Site group (`/navigation`, capability-gated): menu
+list plus a tree editor — per-locale labels and descriptions via a locale switcher (which also
+drives the target badges), entry picker with `unpublished`/`routeless`/`deleted`/`missing`
+badges, URL items, an icon picker per item, drag-and-drop reordering and nesting, and
+up/down/indent/outdent buttons. Saving replaces the whole tree under `lock_version`.
 
-## Install / remove
+## Install / disable
 
-Bundled by default in the Thallo create-project template. Existing app:
-`composer require glueful/thallo-navigation`, `./thallo extensions:enable thallo-navigation`,
-`./thallo migrate:run`. Disable via the switchboard
-(`config/thallo.php: 'capabilities' => ['thallo.navigation' => false]`) or remove entirely —
-routes 404, `MenuReader` resolves null, core and every other pack boot unchanged.
+The pack ships with Thallo: `glueful/thallo-core` requires it at the same version and the project's
+`config/serviceproviders.php` loads its provider, so there is nothing to install or enable per pack.
+Its tables are created by `php glueful migrate:run` with the rest of the schema. An operator turns
+the capability off or on in the admin under **Extensions › Capabilities** (stored system-wide; it
+overrides the deploy-time `thallo.capabilities` config map). When it is off, the routes 404,
+`MenuReader` resolves null, and core and every other pack boot unchanged.
 
-## Out of scope (v1)
+## Out of scope
 
-Menu-item visibility rules (auth-based), mega-menu metadata (icons, badges), theme
-menu-region mapping beyond slugs, drag-drop editing polish, and per-item target/rel
-attributes — all can layer onto the json columns without schema breaks.
+Menu-item visibility rules (auth-based), per-item badges, theme menu-region mapping beyond
+slugs, and per-item target/rel attributes.
 
 ## Contributing
 
