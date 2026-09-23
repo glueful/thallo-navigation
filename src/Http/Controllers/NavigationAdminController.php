@@ -235,6 +235,8 @@ final class NavigationAdminController
                 'kind' => (string) $row['kind'],
                 // Optional Lucide icon (nav-v2 spec §5).
                 'icon' => isset($row['icon']) && $row['icon'] !== '' ? (string) $row['icon'] : null,
+                // "Open in a new window" (per item): always a boolean for the editor.
+                'new_tab' => (bool) ($row['new_tab'] ?? false),
                 'labels' => json_decode((string) $row['labels'], true) ?: [],
                 // Optional locale → description (nav-v2 megamenu); [] when absent.
                 'descriptions' => json_decode((string) ($row['descriptions'] ?? ''), true) ?: [],

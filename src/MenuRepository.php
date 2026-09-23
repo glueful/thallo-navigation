@@ -163,7 +163,7 @@ final class MenuRepository
         $tenant = TenantScope::current($this->tenants, $this->context);
         $extra = $tenant === null ? '' : ' AND tenant_uuid = ?';
         $stmt = $this->db->getPDO()->prepare(
-            'SELECT uuid, parent_uuid, position, kind, entry_uuid, url, icon, labels, descriptions'
+            'SELECT uuid, parent_uuid, position, kind, entry_uuid, url, icon, new_tab, labels, descriptions'
             . ' FROM navigation_items WHERE menu_uuid = ?' . $extra . ' ORDER BY position ASC, id ASC'
         );
         $stmt->execute($tenant === null ? [$menuUuid] : [$menuUuid, $tenant]);

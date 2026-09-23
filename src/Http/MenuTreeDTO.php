@@ -118,6 +118,13 @@ final class MenuTreeDTO
                     $icon = null;
                 }
             }
+            // "Open in a new window" (per item, either kind): anything but a true-ish value is off,
+            // so an older client that never sends the key keeps today's behaviour.
+            $newTab = filter_var($item['new_tab'] ?? false, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+            if ($newTab === null) {
+                $errors["{$p}.new_tab"] = ['new_tab must be true or false'];
+                $newTab = false;
+            }
             $uuid = Utils::generateNanoID();
             $kind = $item['kind'] ?? null;
             if ($kind === 'entry') {
@@ -126,14 +133,14 @@ final class MenuTreeDTO
                 if (in_array($status, ['missing', 'deleted'], true)) {
                     $errors["{$p}.entry_uuid"] = ["entry target is {$status}"];
                 }
-                $rows[] = self::row($uuid, $parent, $i, 'entry', $entry, null, $labels, $icon, $descriptions);
+                $rows[] = self::row($uuid, $parent, $i, 'entry', $entry, null, $labels, $icon, $descriptions, $newTab);
             } elseif ($kind === 'url') {
                 $url = is_string($item['url'] ?? null) ? trim($item['url']) : '';
                 $ok = preg_match('#^(https?://|/)#', $url) === 1 && mb_strlen($url) <= 1024;
                 if (!$ok) {
                     $errors["{$p}.url"] = ['url must be http(s):// or site-relative /… of at most 1024 chars'];
                 }
-                $rows[] = self::row($uuid, $parent, $i, 'url', null, $url, $labels, $icon, $descriptions);
+                $rows[] = self::row($uuid, $parent, $i, 'url', null, $url, $labels, $icon, $descriptions, $newTab);
             } else {
                 $errors["{$p}.kind"] = ['kind must be entry or url'];
                 continue;
@@ -170,6 +177,7 @@ final class MenuTreeDTO
         array $labels,
         ?string $icon,
         array $descriptions = [],
+        bool $newTab = false,
     ): array {
         $now = gmdate('Y-m-d H:i:s');
         return [
@@ -180,6 +188,7 @@ final class MenuTreeDTO
             'entry_uuid' => $entryUuid,
             'url' => $url,
             'icon' => $icon,
+            'new_tab' => $newTab,
             'labels' => json_encode($labels, JSON_THROW_ON_ERROR),
             // Null when empty so the nullable column stays NULL rather than "[]".
             'descriptions' => $descriptions === []

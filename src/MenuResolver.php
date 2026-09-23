@@ -48,7 +48,7 @@ final class MenuResolver implements MenuReader
 
     /**
      * @param array<string, list<array<string,mixed>>> $byParent
-     * @return list<array{label:string, url:string, entry:?string, icon:?string, children:list<mixed>}>
+     * @return list<array{label:string, url:string, entry:?string, icon:?string, new_tab:bool, children:list<mixed>}>
      */
     private function children(array $byParent, string $parent, string $locale): array
     {
@@ -78,6 +78,8 @@ final class MenuResolver implements MenuReader
                 'entry' => $entry,
                 // Optional Lucide icon (nav-v2 spec §5); templates render via icon().
                 'icon' => isset($row['icon']) && $row['icon'] !== '' ? (string) $row['icon'] : null,
+                // "Open in a new window": templates emit target/rel from this.
+                'new_tab' => (bool) ($row['new_tab'] ?? false),
                 // Optional supporting line for dropdown/megamenu panels; '' = none.
                 'description' => $description,
                 'children' => $this->children($byParent, (string) $row['uuid'], $locale),
