@@ -20,6 +20,16 @@ final class NavigationSchemaVerifier implements StructuralVerifierInterface
         '002_CreateNavigationItemsTable.php' => ['navigation_items'],
     ];
 
+    /**
+     * A migration that ALTERS a table proves the column it adds — the table already existed, so
+     * its presence certifies nothing.
+     *
+     * @var array<string, array{0: string, 1: string}> migration => [table, column]
+     */
+    private const ADDED_COLUMNS = [
+        '004_AddNewTabToNavigationItems.php' => ['navigation_items', 'new_tab'],
+    ];
+
     /** @var array<string, list<string>> seed migration => permission slugs it guarantees */
     private const SEEDED_SLUGS = [
         '003_SeedNavigationPermissions.php' => ['navigation.manage'],
@@ -33,7 +43,11 @@ final class NavigationSchemaVerifier implements StructuralVerifierInterface
     /** @return list<string> */
     public function migrationBasenames(): array
     {
-        $names = array_merge(array_keys(self::CREATED_TABLES), array_keys(self::SEEDED_SLUGS));
+        $names = array_merge(
+            array_keys(self::CREATED_TABLES),
+            array_keys(self::ADDED_COLUMNS),
+            array_keys(self::SEEDED_SLUGS),
+        );
         sort($names);
         return $names;
     }
@@ -48,6 +62,11 @@ final class NavigationSchemaVerifier implements StructuralVerifierInterface
                 }
             }
             return true;
+        }
+        if (isset(self::ADDED_COLUMNS[$migrationBasename])) {
+            [$table, $column] = self::ADDED_COLUMNS[$migrationBasename];
+            $schema = $db->getSchemaBuilder();
+            return $schema->hasTable($table) && $schema->hasColumn($table, $column);
         }
         if (isset(self::SEEDED_SLUGS[$migrationBasename])) {
             if (!$db->getSchemaBuilder()->hasTable('permissions')) {
