@@ -55,7 +55,7 @@ up/down/indent/outdent buttons. Saving replaces the whole tree under `lock_versi
 The pack ships with Thallo: `glueful/thallo-core` requires it at the same version and the project's
 `config/serviceproviders.php` loads its provider, so there is nothing to install or enable per pack.
 Its tables are created by `php glueful migrate:run` with the rest of the schema. An operator turns
-the capability off or on in the admin under **Features** (stored system-wide; it
+the capability off or on in the admin under **Extensions › Capabilities** (stored system-wide; it
 overrides the deploy-time `thallo.capabilities` config map). When it is off, the routes 404,
 `MenuReader` resolves null, and core and every other pack boot unchanged.
 
