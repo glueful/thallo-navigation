@@ -8,6 +8,7 @@ use Glueful\Extensions\DeclaresLoadOrder;
 use Glueful\Bootstrap\ApplicationContext;
 use Glueful\Extensions\ServiceProvider;
 use Thallo\Contracts\Capability\Capability;
+use Thallo\Contracts\Capability\DeclaresCapabilities;
 use Thallo\Contracts\Capability\CapabilityRegistry;
 use Thallo\Contracts\Delivery\EntryTargetResolver;
 use Thallo\Contracts\Navigation\MenuReader;
@@ -15,7 +16,7 @@ use Thallo\Navigation\Http\Controllers\MenuController;
 use Thallo\Navigation\Http\Controllers\NavigationAdminController;
 use Psr\Container\ContainerInterface;
 
-final class NavigationServiceProvider extends ServiceProvider implements DeclaresLoadOrder
+final class NavigationServiceProvider extends ServiceProvider implements DeclaresLoadOrder, DeclaresCapabilities
 {
     public static function loadAfter(): array
     {
@@ -67,15 +68,20 @@ final class NavigationServiceProvider extends ServiceProvider implements Declare
         );
     }
 
+    public function capabilities(): array
+    {
+        return [
+            new Capability(
+                'thallo.navigation',
+                label: 'Navigation',
+                description: 'Menu trees served headless and to themes.',
+            ),
+        ];
+    }
+
     public function boot(ApplicationContext $context): void
     {
         $registry = app($context, CapabilityRegistry::class);
-
-        $registry->register(new Capability(
-            'thallo.navigation',
-            label: 'Navigation',
-            description: 'Menu trees served headless and to themes.',
-        ));
 
         // Migrations are declared by the composer manifest (extra.glueful.migrations).
 
